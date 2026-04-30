@@ -1,0 +1,38 @@
+{
+    "name": "ekumanov/flarum-ext-rich-embeds-display",
+    "description": "Read-only renderer for legacy kilowhat/rich-embeds data. Temporary stand-in until kilowhat ships its Flarum 2.0 port.",
+    "keywords": [
+        "flarum",
+        "extension",
+        "rich-embeds",
+        "opengraph"
+    ],
+    "type": "flarum-extension",
+    "license": "MIT",
+    "require": {
+        "flarum/core": "^2.0",
+        "php": "^8.2"
+    },
+    "authors": [
+        {
+            "name": "ekumanov",
+            "email": "ekumanov@users.noreply.github.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Ekumanov\\RichEmbedsDisplay\\": "src/"
+        }
+    },
+    "extra": {
+        "flarum-extension": {
+            "title": "Rich Embeds (Display Only)",
+            "category": "feature",
+            "icon": {
+                "name": "fas fa-link",
+                "backgroundColor": "#6E5494",
+                "color": "#fff"
+            }
+        }
+    }
+}

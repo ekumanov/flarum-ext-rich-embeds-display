@@ -1,0 +1,3 @@
+ekumanov-rich-embeds-display:
+  admin:
+    description: Renders preview cards for legacy kilowhat/rich-embeds data. Read-only; intended as a temporary stand-in until kilowhat ships its Flarum 2.0 port.
