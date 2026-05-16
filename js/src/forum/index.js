@@ -142,9 +142,9 @@ function buildDismissButton(embed, wrapper) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = CARD_CLASS + '-dismiss';
-    // The visible glyph is `×` but screen readers should hear "Hide preview"
+    // The visible glyph is `×` but screen readers should hear "Dismiss preview"
     // — pair an aria-hidden glyph with an accessible label.
-    const label = app.translator.trans('ekumanov-rich-embeds-display.forum.dismiss_preview') || 'Hide preview';
+    const label = app.translator.trans('ekumanov-rich-embeds-display.forum.dismiss_preview') || 'Dismiss preview';
     btn.setAttribute('aria-label', label);
     btn.title = label;
     const glyph = document.createElement('span');
@@ -187,7 +187,7 @@ function buildRestorePlaceholder(embed) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = PLACEHOLDER_CLASS + '-restore';
-    const restoreText = app.translator.trans('ekumanov-rich-embeds-display.forum.restore_preview') || 'Show preview';
+    const restoreText = app.translator.trans('ekumanov-rich-embeds-display.forum.restore_preview') || 'Restore preview';
     btn.textContent = '▸ ' + restoreText;
     // Pair the visible label with a more specific accessible name including
     // the URL, so a SR user knows which preview will return.

@@ -15,6 +15,6 @@ ekumanov-rich-embeds-display:
       blacklist: Hostname blacklist
       blacklist_help: One host per line. Listed hosts never get cards. Subdomain wildcards like *.example.com supported; www. prefix normalized. Applied after whitelist.
   forum:
-    dismiss_preview: Hide preview
-    restore_preview: Show preview
+    dismiss_preview: Dismiss preview
+    restore_preview: Restore preview
     preview_aria_prefix: Link preview
