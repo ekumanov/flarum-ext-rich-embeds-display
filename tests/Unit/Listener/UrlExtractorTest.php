@@ -4,6 +4,7 @@ namespace Ekumanov\RichEmbedsDisplay\Tests\Unit\Listener;
 
 use Ekumanov\RichEmbedsDisplay\Http\UrlValidator;
 use Ekumanov\RichEmbedsDisplay\Listener\UrlExtractor;
+use Ekumanov\RichEmbedsDisplay\LocalDiscussion\LocalDiscussionResolver;
 use Ekumanov\RichEmbedsDisplay\Settings\SettingsRepository;
 use Flarum\Settings\SettingsRepositoryInterface;
 use PHPUnit\Framework\TestCase;
@@ -160,7 +161,33 @@ final class UrlExtractorTest extends TestCase
         $this->assertSame(['https://example.com/page'], $this->extractor()->extract($html));
     }
 
-    private function extractor(int $maxUrls = 10, array $whitelist = [], array $blacklist = []): UrlExtractor
+    public function test_self_links_bypass_url_validator(): void
+    {
+        // A self-link on a non-standard port (e.g. dev) would fail UrlValidator's
+        // port check (only 80/443 allowed). But since self-links never reach
+        // the HTTP fetcher, they should be allowed through.
+        $html = '
+            <a href="http://forum.example.invalid:8081/d/42">self on non-standard port</a>
+            <a href="http://other.example.com:8081/page">other on non-standard port</a>
+            <a href="https://example.com/page">good</a>
+        ';
+        $r = $this->extractor(forumBase: 'http://forum.example.invalid:8081')->extract($html);
+        $this->assertSame(
+            ['http://forum.example.invalid:8081/d/42', 'https://example.com/page'],
+            $r,
+            'Self-link passes despite bad port; non-self-link with same port still rejected'
+        );
+    }
+
+    public function test_self_links_still_subject_to_blacklist(): void
+    {
+        // Admin-controlled blacklist applies even to self-links.
+        $html = '<a href="https://forum.example.invalid/d/42">a</a>';
+        $r = $this->extractor(blacklist: ['forum.example.invalid'])->extract($html);
+        $this->assertSame([], $r);
+    }
+
+    private function extractor(int $maxUrls = 10, array $whitelist = [], array $blacklist = [], string $forumBase = 'https://forum.example.invalid'): UrlExtractor
     {
         $settings = new InMemorySettings([
             'ekumanov-rich-embeds.max_urls_per_post' => (string) $maxUrls,
@@ -170,6 +197,7 @@ final class UrlExtractorTest extends TestCase
         return new UrlExtractor(
             new UrlValidator(),
             new SettingsRepository($settings),
+            new LocalDiscussionResolver($forumBase, $settings),
         );
     }
 }

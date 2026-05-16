@@ -5,6 +5,7 @@ namespace Ekumanov\RichEmbedsDisplay\Listener;
 use Carbon\Carbon;
 use Ekumanov\RichEmbedsDisplay\Embed;
 use Ekumanov\RichEmbedsDisplay\Job\FetchEmbedJob;
+use Ekumanov\RichEmbedsDisplay\LocalDiscussion\LocalDiscussionResolver;
 use Ekumanov\RichEmbedsDisplay\RateLimit\UrlSubmissionLimiter;
 use Ekumanov\RichEmbedsDisplay\Settings\SettingsRepository;
 use Flarum\Post\Event\Posted;
@@ -37,6 +38,7 @@ final class ScanPostUrls
         private readonly Queue $queue,
         private readonly ConnectionInterface $db,
         private readonly LoggerInterface $log,
+        private readonly LocalDiscussionResolver $localResolver,
     ) {}
 
     public function handle(Posted|Revised $event): void
@@ -112,7 +114,29 @@ final class ScanPostUrls
                 || Carbon::parse($embed->retrieved_at)->lt($ttlAgo);
 
             if ($needsFetch) {
-                $this->queue->push(new FetchEmbedJob($embed->id));
+                // Self-link short-circuit: if the URL has the shape of a
+                // self-link (host+path match our own forum), it never goes
+                // to HTTP at all. Resolve locally — either synthesise OG data
+                // (visible public discussion) or record a permanent failure
+                // (discussion missing / hidden / private). Never falls back
+                // to HTTP because Cloudflare would block the loopback fetch
+                // anyway.
+                if ($this->localResolver->parseSelfLink($url) !== null) {
+                    $local = $this->localResolver->resolve($url);
+                    $embed->retrieved_at = Carbon::now();
+                    if ($local !== null) {
+                        $embed->http_status = 200;
+                        $embed->opengraph = $local;
+                        $embed->final_url = $url;
+                        $embed->error = null;
+                    } else {
+                        $embed->http_status = 0;
+                        $embed->error = 'self_link_not_viewable';
+                    }
+                    $embed->save();
+                } else {
+                    $this->queue->push(new FetchEmbedJob($embed->id));
+                }
             }
         }
     }

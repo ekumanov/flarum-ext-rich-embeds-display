@@ -6,6 +6,7 @@ use DOMDocument;
 use DOMElement;
 use DOMXPath;
 use Ekumanov\RichEmbedsDisplay\Http\UrlValidator;
+use Ekumanov\RichEmbedsDisplay\LocalDiscussion\LocalDiscussionResolver;
 use Ekumanov\RichEmbedsDisplay\Settings\SettingsRepository;
 
 /**
@@ -47,6 +48,7 @@ final class UrlExtractor
     public function __construct(
         private readonly UrlValidator $urlValidator,
         private readonly SettingsRepository $settings,
+        private readonly LocalDiscussionResolver $localResolver,
     ) {}
 
     /**
@@ -130,12 +132,22 @@ final class UrlExtractor
             }
             $seen[$href] = true;
 
-            $v = $this->urlValidator->validate($href);
-            if (! $v['ok']) {
-                continue;
-            }
+            // Self-links bypass UrlValidator. The validator gates HTTP fetches
+            // (scheme/port/userinfo), but self-links never reach the fetcher —
+            // they're resolved against the local DB. That also lets dev
+            // installs on non-standard ports (e.g. localhost:8081) work.
+            $isSelfLink = $this->localResolver->parseSelfLink($href) !== null;
+            $host = null;
 
-            $host = strtolower($v['host']);
+            if (! $isSelfLink) {
+                $v = $this->urlValidator->validate($href);
+                if (! $v['ok']) {
+                    continue;
+                }
+                $host = strtolower($v['host']);
+            } else {
+                $host = strtolower((string) parse_url($href, PHP_URL_HOST));
+            }
             if (in_array($host, self::SKIP_HOSTS, true)) {
                 // Formatter / other extensions handle these (YouTube). No card needed.
                 continue;

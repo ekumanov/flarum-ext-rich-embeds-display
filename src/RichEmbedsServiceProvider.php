@@ -10,7 +10,10 @@ use Ekumanov\RichEmbedsDisplay\Http\RequestExecutor;
 use Ekumanov\RichEmbedsDisplay\Http\Resolver;
 use Ekumanov\RichEmbedsDisplay\Http\SafeHttpClient;
 use Ekumanov\RichEmbedsDisplay\Http\UrlValidator;
+use Ekumanov\RichEmbedsDisplay\LocalDiscussion\LocalDiscussionResolver;
 use Flarum\Foundation\AbstractServiceProvider;
+use Flarum\Foundation\Config;
+use Flarum\Settings\SettingsRepositoryInterface;
 
 /**
  * Binds the SSRF-safe HTTP stack so SafeHttpClient (and its dependencies) can
@@ -43,6 +46,14 @@ class RichEmbedsServiceProvider extends AbstractServiceProvider
             ipFilter: $c->make(IpFilter::class),
             executor: $c->make(RequestExecutor::class),
             maxRedirects: 5,
+        ));
+
+        // Self-link short-circuit. Base URL is computed once from Flarum's
+        // Config; the resolver compares posted URLs' host+path against it
+        // and looks the discussion up locally if it matches.
+        $this->container->singleton(LocalDiscussionResolver::class, fn ($c) => new LocalDiscussionResolver(
+            forumBaseUrl: (string) $c->make(Config::class)->url(),
+            settings: $c->make(SettingsRepositoryInterface::class),
         ));
     }
 }

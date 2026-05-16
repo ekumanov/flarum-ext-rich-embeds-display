@@ -5,6 +5,7 @@ namespace Ekumanov\RichEmbedsDisplay\Job;
 use Carbon\Carbon;
 use Ekumanov\RichEmbedsDisplay\Embed;
 use Ekumanov\RichEmbedsDisplay\Http\SafeHttpClient;
+use Ekumanov\RichEmbedsDisplay\LocalDiscussion\LocalDiscussionResolver;
 use Ekumanov\RichEmbedsDisplay\Parser\HtmlFallbackParser;
 use Ekumanov\RichEmbedsDisplay\Parser\OpenGraphParser;
 use Ekumanov\RichEmbedsDisplay\Settings\SettingsRepository;
@@ -43,6 +44,7 @@ class FetchEmbedJob extends AbstractJob
         HtmlFallbackParser $fbParser,
         SettingsRepository $settings,
         LoggerInterface $log,
+        LocalDiscussionResolver $localResolver,
     ): void {
         $embed = Embed::find($this->embedId);
         if ($embed === null) {
@@ -55,6 +57,26 @@ class FetchEmbedJob extends AbstractJob
             if ($age < $settings->ttlSeconds()) {
                 return; // already fresh
             }
+        }
+
+        // Self-link short-circuit — same as ScanPostUrls, but also catches
+        // backfill / sweep dispatches where the listener never ran. If the
+        // URL is self-shaped, it NEVER goes to HTTP — succeed locally or
+        // record a permanent failure.
+        if ($localResolver->parseSelfLink($embed->url) !== null) {
+            $local = $localResolver->resolve($embed->url);
+            $embed->retrieved_at = Carbon::now();
+            if ($local !== null) {
+                $embed->http_status = 200;
+                $embed->opengraph = $local;
+                $embed->final_url = $embed->url;
+                $embed->error = null;
+            } else {
+                $embed->http_status = 0;
+                $embed->error = 'self_link_not_viewable';
+            }
+            $embed->save();
+            return;
         }
 
         try {
