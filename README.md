@@ -207,12 +207,16 @@ Comma-, space-, or semicolon-separated hostnames. Case-insensitive.
   hosts outside it are excluded; blacklist filters within whatever
   remains.
 
-Default blacklist is `amazon.com, *.amazon.com, ebay.com, *.ebay.com` —
-commerce sites whose OG cards are typically lower-quality than the plain
-hyperlink. Override by setting the row explicitly. (Some other extensions'
-formatters render specific hosts as iframe embeds — YouTube via
-fof/formatting's MediaEmbed for instance — those are skipped at scan-time
-unconditionally so we never compete with the formatter.)
+Default blacklist is **empty** — every URL gets a fetch + card unless the
+admin curates exclusions. (Other extensions' formatters render specific
+hosts as iframe embeds — YouTube via fof/formatting's MediaEmbed for
+instance — those are skipped at scan-time unconditionally so we never
+compete with the formatter, regardless of blacklist settings.)
+
+Admins/authors can still dismiss individual cards on a per-post basis
+via the ✕ button on each card — that's the right tool for "this
+specific card is ugly", whereas the blacklist is for "I never want
+cards from this host."
 
 ## Migration from `kilowhat/rich-embeds` 1.x
 

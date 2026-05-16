@@ -75,13 +75,17 @@ return [
         ->post('/rich-embeds/posts/{postId}/embeds/{embedId}/dismiss', 'rich-embeds.dismiss', DismissEmbedController::class)
         ->delete('/rich-embeds/posts/{postId}/embeds/{embedId}/dismiss', 'rich-embeds.restore', RestoreEmbedController::class),
 
-    // Default settings — admins can override via the settings table. The
-    // blacklist default is intentionally minimal (amazon + ebay) per the
-    // commonest "OG card is uglier than a plain hyperlink" preference;
-    // wildcard form `*.amazon.com` covers subdomains (prime, smile, etc.)
-    // while the bare form covers the apex.
+    // Default settings — admins can override via the settings table. We
+    // ship NO default blacklist: every URL gets a fetch+card unless the
+    // admin explicitly excludes a host. This is the most permissive
+    // baseline; admins curate their own blacklist via SQL (admin UI is v1.1).
+    //
+    // (Earlier iterations defaulted to amazon.com+ebay.com; reverted after
+    // user feedback that they preferred ANY preview to a raw hyperlink, even
+    // if the source site's OG card is mediocre. Dismiss/restore controls
+    // give authors+mods per-card override anyway.)
     (new Extend\Settings())
-        ->default('ekumanov-rich-embeds.blacklist', 'amazon.com,*.amazon.com,ebay.com,*.ebay.com'),
+        ->default('ekumanov-rich-embeds.blacklist', ''),
 
     // Scheduler safety-net: every 5 min, re-dispatch any placeholder embed
     // rows whose original FetchEmbedJob seems to have been dropped (worker
