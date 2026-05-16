@@ -19,14 +19,13 @@
 //   - Both sides exist (manual partial state) → throw, require human intervention.
 
 use Illuminate\Database\Schema\Builder;
-use RuntimeException;
 
 return [
     'up' => function (Builder $schema) {
         $hasKilowhatEmbeds = $schema->hasTable('kilowhat_rich_embeds');
         $hasEkumanovEmbeds = $schema->hasTable('ekumanov_rich_embeds');
         if ($hasKilowhatEmbeds && $hasEkumanovEmbeds) {
-            throw new RuntimeException(
+            throw new \RuntimeException(
                 'Both kilowhat_rich_embeds and ekumanov_rich_embeds exist. '
                 .'Resolve manually (consolidate or drop one) before re-running.'
             );
@@ -38,7 +37,7 @@ return [
         $hasKilowhatPivot = $schema->hasTable('kilowhat_rich_embed_post');
         $hasEkumanovPivot = $schema->hasTable('ekumanov_rich_embed_post');
         if ($hasKilowhatPivot && $hasEkumanovPivot) {
-            throw new RuntimeException(
+            throw new \RuntimeException(
                 'Both kilowhat_rich_embed_post and ekumanov_rich_embed_post exist. '
                 .'Resolve manually before re-running.'
             );
