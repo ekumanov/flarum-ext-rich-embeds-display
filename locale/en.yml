@@ -3,6 +3,5 @@ ekumanov-rich-embeds-display:
     description: Renders OpenGraph preview cards for links in Flarum 2.0 posts. Includes a server-side fetcher with SSRF-hardened HTTP, per-post rate limits, and admin-controlled host whitelist/blacklist.
   forum:
     dismiss_preview: Hide preview
-    preview_dismissed: Preview dismissed
-    restore_preview: Show preview again
+    restore_preview: Show preview
     preview_aria_prefix: Link preview

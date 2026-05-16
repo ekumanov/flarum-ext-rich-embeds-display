@@ -172,22 +172,22 @@ function buildDismissButton(embed, wrapper) {
 }
 
 function buildRestorePlaceholder(embed) {
-    // Tiny one-line link only visible to actors with edit perm. Regular
+    // Tiny one-line link, only visible to actors with edit perm. Regular
     // readers' API response filters dismissed embeds out before this point,
     // so they never get to see this row at all.
+    //
+    // Trimmed to the bare essentials: just the action, no redundant "preview
+    // dismissed" label. The absence of a card adjacent to the link makes the
+    // dismissed state visually obvious to sighted users. Screen-reader
+    // listeners get the URL via aria-label for context.
     const ph = document.createElement('span');
     ph.className = PLACEHOLDER_CLASS;
     ph.setAttribute('role', 'status'); // mild aria-live so SR users notice the swap
 
-    const label = document.createElement('span');
-    label.className = PLACEHOLDER_CLASS + '-label';
-    label.textContent = app.translator.trans('ekumanov-rich-embeds-display.forum.preview_dismissed') || 'Preview dismissed';
-    ph.appendChild(label);
-
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = PLACEHOLDER_CLASS + '-restore';
-    const restoreText = app.translator.trans('ekumanov-rich-embeds-display.forum.restore_preview') || 'Show preview again';
+    const restoreText = app.translator.trans('ekumanov-rich-embeds-display.forum.restore_preview') || 'Show preview';
     btn.textContent = '▸ ' + restoreText;
     // Pair the visible label with a more specific accessible name including
     // the URL, so a SR user knows which preview will return.
