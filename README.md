@@ -252,21 +252,33 @@ our extractor regardless of blacklist settings.)
 
 ## Migration from `kilowhat/rich-embeds` 1.x
 
-If your forum ran the 1.x kilowhat extension, the tables
-(`ekumanov_rich_embeds`, `kilowhat_rich_embed_post`) and old data are
-preserved as-is. This extension reuses them in place. Old cards render
-identically. New posts trigger fetches via the new worker pipeline.
+If your forum ran the 1.x kilowhat extension, the legacy tables
+(`kilowhat_rich_embeds`, `kilowhat_rich_embed_post`) and old data are
+preserved as-is. The v2.0.0 migration atomically renames them to
+`ekumanov_rich_embeds` / `ekumanov_rich_embed_post` (MySQL `RENAME TABLE`
+preserves the pivot's foreign keys). Old cards render identically. New
+posts trigger fetches via the new worker pipeline.
 
-The old `kilowhat-rich-embeds.*` settings rows are ignored — this extension
-reads from `ekumanov-rich-embeds.*` and falls back to defaults.
+The old `kilowhat-rich-embeds.*` settings rows are ignored — this
+extension reads from `ekumanov-rich-embeds.*` and falls back to
+defaults. If you'd customised the legacy settings and want to keep them,
+copy the values across manually in the admin UI (or via SQL).
 
 If kilowhat 1.x's scanner ever stored mention or quote URLs (it did),
 you may have lingering pivot rows for `/u/{username}` profile URLs and
 `/d/{id}/{n}` post-permalink URLs. The display layer in v1.1.1+ correctly
-suppresses these going forward; a one-shot cleanup script in
-[`cleanup-bad-pivots-full.php`](cleanup-bad-pivots-full.php) (run once
-manually, then delete) walks every post and removes pivots the fixed
-extractor no longer recognises.
+suppresses these going forward. To purge the historical rows, run the
+extractor over each post once and drop pivot rows that no longer match —
+see the dismiss/restore API and `BackfillEmbedsCommand` for the building
+blocks, or query directly:
+
+```sql
+-- Inspect: pivot rows pointing at user-profile or post-permalink URLs.
+SELECT p.id, e.url
+  FROM ekumanov_rich_embed_post p
+  JOIN ekumanov_rich_embeds e ON e.id = p.embed_id
+ WHERE e.url REGEXP '/forum/(u/|d/[0-9]+/[0-9]+)';
+```
 
 ## Development
 
@@ -287,9 +299,8 @@ the dismiss/restore controllers. Local-DB-backed integration is covered
 by the live integration suite, which hits real loopback/AWS-metadata/
 RFC1918 endpoints to verify the SSRF guards.
 
-## Future work (v1.x+)
+## Future work
 
-- Admin settings UI (blacklist/whitelist/TTL textareas)
 - Per-group permission gating (`ekumanov-rich-embeds.useOnOwnPost`)
 - Placeholder-card render path closing the realtime-update CLS edge case
 - Strike-based auto-mute (mirroring the cls-fix pattern) when a user posts

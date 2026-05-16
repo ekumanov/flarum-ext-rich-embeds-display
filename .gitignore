@@ -11,5 +11,5 @@ js/dist/*.map
 
 # Local-only dev smoke scripts (hardcoded localhost paths + creds).
 # The PHPUnit suites under tests/Unit and tests/Integration are committed.
-tests/smoke.php
+tests/smoke*.php
 tests/*.sh
