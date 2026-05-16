@@ -9,9 +9,27 @@ A clean-room reimplementation of the link-card behaviour offered by
 (which never received a 2.0 port). Schema-compatible with that extension's
 existing tables so installs migrating from 1.x see no data loss.
 
-Scope is deliberately narrow: regular links only. YouTube auto-embeds are
-already handled by Flarum 2.0 core; bare-image URLs are already inlined by
-the formatter; this extension fills the remaining gap.
+## Scope
+
+This extension fills the gap **between** Flarum's other auto-embedders:
+
+- **iframe embeds** for ~150 popular sites (Pinterest, Twitter/X, Vimeo,
+  Spotify, Reddit, TikTok, SoundCloud, Instagram, Mastodon, Bluesky,
+  Imgur, GitHub Gist, ...): handled at parse time by
+  `fof/formatting`'s MediaEmbed plugin (which wraps s9e's MediaPack).
+  The URL is replaced with an `<iframe>` in stored content — our
+  extension never sees it.
+- **Inline `<img>`** for bare image URLs (`.jpg`, `.png`, `.gif`, etc.):
+  handled by `fof/formatting`'s `autoimage` plugin.
+- **Everything else** — articles, blog posts, docs, GitHub repos,
+  Wikipedia pages, and any other URL not covered above: handled by
+  this extension. Card with title, description, site name, thumbnail.
+
+Plus a **self-link short-circuit**: URLs pointing at the local forum
+itself are resolved against the DB directly (no HTTP fetch) — bypasses
+Cloudflare bot challenges, removes the SSRF surface entirely for the
+local origin, and works even when the discussion is restricted to a
+user's tag scope.
 
 ## How it works
 
@@ -22,8 +40,13 @@ POST /api/posts (synchronous)                       Background worker
 2. Posted/Revised event fires.                     2. SafeHttpClient.get()
 3. ScanPostUrls listener:                              (≤10s budget,
    - DOMs the rendered body for <a href>             SSRF-hardened).
-   - dedups / validates / whitelist / blacklist    3. OG + fallback parsers.
-   - rate-limits per author (hourly)               4. Updates the embed row.
+   - SKIPS mention / quote anchors                 3. OG + fallback parsers.
+   - dedups / validates / whitelist / blacklist    4. Updates the embed row.
+   - rate-limits per author (hourly)
+   - SELF-LINK SHORT-CIRCUIT: if the URL
+     matches the local forum's host+path,
+     resolve from the discussions table
+     synchronously and skip the queue
    - inserts placeholder embed + pivot rows
    - queue→push(new FetchEmbedJob)
 4. API response returns in normal ~50ms.           5. Next page load
@@ -34,6 +57,24 @@ The post-save request thread never blocks on a remote fetch. If the queue is
 backed up or a worker is down, posts still go in immediately; cards just
 appear later as the worker drains. A scheduler sweep (5-minute interval)
 re-dispatches any rows that lost their job.
+
+### What this does NOT do (intentional)
+
+- **No client-driven fetch.** Browsers never trigger fetches directly. The
+  only trigger is a post being saved/edited by an authenticated user.
+- **No retries.** Failed fetches stay failed (one entry per URL).
+- **No image proxy.** OG thumbnails are hot-linked from the source. Failed
+  image loads degrade to a fixed-size placeholder slot (no layout shift).
+- **No card duplication for MediaPack sites.** When `fof/formatting`'s
+  MediaEmbed plugin transforms a URL into an `<iframe>` at parse time, the
+  underlying `<a href>` is replaced, so our extractor doesn't see it.
+- **No card for bare image URLs** — `fof/formatting`'s `autoimage` already
+  inlines them as `<img>`. We skip image-extension URLs at scan time.
+- **No URLs from mentions or quoted content.** `<UserMention>`,
+  `<PostMention>`, and `<a>` tags inside `<blockquote>` are excluded by
+  the extractor — they're not user-typed URLs, they're rendering output
+  from other formatter tags.
+- **No third-party API integrations** (Google Drive, GitHub).
 
 ## Security model
 
@@ -63,19 +104,6 @@ The full SSRF chain is exercised end-to-end by `tests/Integration/Http/SafeHttpC
 which hits `http://127.0.0.1/`, `http://localhost/`, and `http://169.254.169.254/`
 against real curl and asserts they're all blocked.
 
-### What this does NOT do (intentional)
-
-- **No client-driven fetch.** Browsers never trigger fetches directly. The
-  only trigger is a post being saved/edited by an authenticated user.
-- **No retries.** Failed fetches stay failed (one entry per URL).
-- **No image proxy.** OG thumbnails are hot-linked from the source. Failed
-  image loads degrade to a fixed-size placeholder slot (no layout shift).
-- **No YouTube card** — fof/formatting's `mediaembed` plugin renders YouTube
-  URLs as iframe video players. We skip them at scan time.
-- **No image-MIME card** — fof/formatting's `autoimage` plugin renders bare
-  image URLs as inline `<img>` tags. We skip image-extension URLs at scan time.
-- **No third-party API integrations** (Google Drive, GitHub).
-
 ## Dismissing a card
 
 If a card looks bad (mediocre OG data, unwanted content, off-topic) the post
@@ -83,14 +111,17 @@ author or any moderator/admin can dismiss the individual card without
 removing the link itself.
 
 - Hover the card → a **✕** button appears in the top-right corner.
-- Click → card disappears, replaced by an inline "Preview dismissed
-  · Show preview again" hint visible only to authors/mods.
-- Click "Show preview again" → card returns.
+- Click → card disappears, replaced by an inline **▸ Show preview** link
+  visible only to authors/mods/admins (i.e. anyone who could edit the post).
+- Click that → card returns.
 
 Dismissal is per `(post, embed)` — the same URL stays embeddable in other
 posts. Stored in the `dismissed_at` column on the pivot table. Regular
-readers never see dismissed cards; the API hides them upstream of the
-serializer.
+readers and guests never see dismissed cards (nor the restore link); the
+API hides them upstream of the serializer.
+
+Accessibility: the restore button has `aria-label="Show preview: {URL}"`
+so screen-reader users hear which URL's preview will return.
 
 Permissions: `$actor->can('edit', $post)` — Flarum's standard policy, which
 grants `discussion.editOwnPost` to the author and `discussion.editPost` to
@@ -182,7 +213,7 @@ jobs, so a forum without it just loses the safety net.
 ## Configuration
 
 Settings live under the `ekumanov-rich-embeds.` prefix in the `settings`
-table. No admin UI yet (planned for v1.1); set directly:
+table. No admin UI yet (planned for v1.x); set directly:
 
 ```sql
 INSERT INTO settings (`key`, value) VALUES
@@ -190,13 +221,15 @@ INSERT INTO settings (`key`, value) VALUES
   ('ekumanov-rich-embeds.user_rate_per_hour',  '20'),
   ('ekumanov-rich-embeds.max_urls_per_post',   '10'),
   ('ekumanov-rich-embeds.whitelist',           ''),
-  ('ekumanov-rich-embeds.blacklist',           'amazon.com,*.amazon.com,ebay.com,*.ebay.com');
+  ('ekumanov-rich-embeds.blacklist',           '')
 ON DUPLICATE KEY UPDATE value = VALUES(value);
 ```
 
 ### `whitelist` / `blacklist`
 
-Comma-, space-, or semicolon-separated hostnames. Case-insensitive.
+Both default to empty — every URL gets a fetch + card unless the admin
+curates exclusions. Comma-, space-, or semicolon-separated hostnames,
+case-insensitive.
 
 - The `www.` prefix is normalised both ways — `amazon.com` matches
   `www.amazon.com` and vice versa.
@@ -207,16 +240,14 @@ Comma-, space-, or semicolon-separated hostnames. Case-insensitive.
   hosts outside it are excluded; blacklist filters within whatever
   remains.
 
-Default blacklist is **empty** — every URL gets a fetch + card unless the
-admin curates exclusions. (Other extensions' formatters render specific
-hosts as iframe embeds — YouTube via fof/formatting's MediaEmbed for
-instance — those are skipped at scan-time unconditionally so we never
-compete with the formatter, regardless of blacklist settings.)
-
-Admins/authors can still dismiss individual cards on a per-post basis
+Admins/authors can also dismiss individual cards on a per-post basis
 via the ✕ button on each card — that's the right tool for "this
 specific card is ugly", whereas the blacklist is for "I never want
 cards from this host."
+
+(MediaPack-handled hosts like Pinterest, Twitter, etc. are already
+iframe-embedded by `fof/formatting` at parse time, so they never reach
+our extractor regardless of blacklist settings.)
 
 ## Migration from `kilowhat/rich-embeds` 1.x
 
@@ -228,22 +259,34 @@ identically. New posts trigger fetches via the new worker pipeline.
 The old `kilowhat-rich-embeds.*` settings rows are ignored — this extension
 reads from `ekumanov-rich-embeds.*` and falls back to defaults.
 
+If kilowhat 1.x's scanner ever stored mention or quote URLs (it did),
+you may have lingering pivot rows for `/u/{username}` profile URLs and
+`/d/{id}/{n}` post-permalink URLs. The display layer in v1.1.1+ correctly
+suppresses these going forward; a one-shot cleanup script in
+[`cleanup-bad-pivots-full.php`](cleanup-bad-pivots-full.php) (run once
+manually, then delete) walks every post and removes pivots the fixed
+extractor no longer recognises.
+
 ## Development
 
 ```bash
 # PHP unit + integration tests
 composer install
 vendor/bin/phpunit
-
-# JS build
-cd js && npm install && npm run build
-
-# Live smoke against a running Flarum container (see prod-mirror docs)
-docker exec <php-container> php /path/to/extension/tests/smoke.php
-bash tests/smoke-listener.sh
 ```
 
-## Future work (v1.1+)
+```bash
+# JS build
+cd js && npm install && npm run build
+```
+
+The PHPUnit suite covers the SSRF chain, URL extraction, mention/quote
+filtering, OpenGraph parsing, self-link parsing, blacklist matching, and
+the dismiss/restore controllers. Local-DB-backed integration is covered
+by the live integration suite, which hits real loopback/AWS-metadata/
+RFC1918 endpoints to verify the SSRF guards.
+
+## Future work (v1.x+)
 
 - Admin settings UI (blacklist/whitelist/TTL textareas)
 - Per-group permission gating (`ekumanov-rich-embeds.useOnOwnPost`)
