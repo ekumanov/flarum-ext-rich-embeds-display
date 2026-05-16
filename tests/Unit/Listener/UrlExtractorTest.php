@@ -187,6 +187,56 @@ final class UrlExtractorTest extends TestCase
         $this->assertSame([], $r);
     }
 
+    public function test_skips_post_mention_anchors(): void
+    {
+        // Flarum's mentions plugin renders <POSTMENTION> tags as anchors with
+        // class="PostMention". These point at /d/{id}/{n} self-links — embedding
+        // them as cards would mean every reply to a thread gets a card to the
+        // thread itself. Production bug that caused the regression on 2026-05-16.
+        $html = '
+            <blockquote class="uncited"><div><p>
+              <a href="https://forum.example.invalid/d/2449/13" class="PostMention" data-id="55508">
+                <i class="icon fas fa-reply"></i>PASHKULI
+              </a> quoted content
+            </p></div></blockquote>
+            <p>My actual reply with <a href="https://example.com/real-url">a real URL</a></p>
+        ';
+        $r = $this->extractor()->extract($html);
+        $this->assertSame(['https://example.com/real-url'], $r);
+    }
+
+    public function test_skips_user_mention_anchors(): void
+    {
+        $html = '
+            <p>Hey <a href="/u/CyberGene" class="UserMention" data-id="2">@CyberGene</a>,
+            check out <a href="https://example.com/page">this</a></p>
+        ';
+        $r = $this->extractor()->extract($html);
+        $this->assertSame(['https://example.com/page'], $r);
+    }
+
+    public function test_skips_anchors_inside_blockquote(): void
+    {
+        // Quoted content reproduces another post's URLs. We shouldn't card those
+        // — they belong to the quoted post.
+        $html = '
+            <blockquote><p>Original poster said: <a href="https://example.com/quoted">quoted url</a></p></blockquote>
+            <p>My reply with <a href="https://example.com/my-url">my url</a></p>
+        ';
+        $r = $this->extractor()->extract($html);
+        $this->assertSame(['https://example.com/my-url'], $r);
+    }
+
+    public function test_nested_blockquote_anchors_also_skipped(): void
+    {
+        $html = '
+            <blockquote><div><p><a href="https://example.com/deep">deep</a></p></div></blockquote>
+            <p><a href="https://example.com/own">own</a></p>
+        ';
+        $r = $this->extractor()->extract($html);
+        $this->assertSame(['https://example.com/own'], $r);
+    }
+
     private function extractor(int $maxUrls = 10, array $whitelist = [], array $blacklist = [], string $forumBase = 'https://forum.example.invalid'): UrlExtractor
     {
         $settings = new InMemorySettings([

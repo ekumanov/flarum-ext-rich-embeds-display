@@ -110,7 +110,17 @@ final class UrlExtractor
         }
 
         $xpath = new DOMXPath($doc);
-        $anchors = $xpath->query('//a[@href]');
+        // Skip anchors that aren't user-typed URLs:
+        //   - class containing "Mention" → PostMention, UserMention, TagMention
+        //     (s9e's mention plugins render these instead of <URL> tags)
+        //   - inside any <blockquote> → quoted content from another post; the URL
+        //     belongs to the quoted post, not this one. Embedding it here would
+        //     duplicate whatever card the source post already shows.
+        $anchors = $xpath->query(
+            '//a[@href]'
+                .'[not(contains(@class, "Mention"))]'
+                .'[not(ancestor::blockquote)]'
+        );
         if ($anchors === false) {
             return [];
         }
