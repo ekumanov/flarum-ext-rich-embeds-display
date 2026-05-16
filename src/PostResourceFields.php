@@ -2,6 +2,7 @@
 
 namespace Ekumanov\RichEmbedsDisplay;
 
+use Flarum\Api\Context;
 use Flarum\Api\Schema;
 use Flarum\Post\Post;
 use Illuminate\Support\Arr;
@@ -21,20 +22,22 @@ class PostResourceFields
     {
         return [
             Schema\Arr::make('richEmbedsDisplay')
-                ->get(fn (Post $post) => $this->buildPreviews($post)),
+                ->get(fn (Post $post, Context $context) => $this->buildPreviews($post, $context)),
         ];
     }
 
-    private function buildPreviews(Post $post): array
+    private function buildPreviews(Post $post, Context $context): array
     {
         if (! $post->relationLoaded('richEmbedsDisplay')) {
             return [];
         }
 
+        $canDismiss = $context->getActor()->can('edit', $post);
+
         $previews = [];
 
         foreach ($post->getRelation('richEmbedsDisplay') as $embed) {
-            if ($preview = $this->preview($embed)) {
+            if ($preview = $this->preview($embed, $post, $canDismiss)) {
                 $previews[] = $preview;
             }
         }
@@ -42,7 +45,7 @@ class PostResourceFields
         return $previews;
     }
 
-    private function preview(Embed $embed): ?array
+    private function preview(Embed $embed, Post $post, bool $canDismiss): ?array
     {
         // Image-typed URLs already render inline as <img> via Flarum's formatter.
         if ($embed->mime && str_starts_with($embed->mime, 'image/')) {
@@ -54,6 +57,15 @@ class PostResourceFields
 
         // Flarum 2.0 auto-embeds YouTube, so a card here would be redundant.
         if (in_array($host, self::YOUTUBE_HOSTS, true)) {
+            return null;
+        }
+
+        $dismissed = $embed->pivot && $embed->pivot->dismissed_at !== null;
+
+        // Regular readers never see dismissed cards — they get the plain link
+        // in the body and nothing else. Users with edit perm see the restore
+        // placeholder so they can review/undo.
+        if ($dismissed && ! $canDismiss) {
             return null;
         }
 
@@ -72,6 +84,8 @@ class PostResourceFields
         $image = $this->firstImage($og, $fallback);
 
         return [
+            'embedId' => (int) $embed->id,
+            'postId' => (int) $post->id,
             // url is what we match against post-body <a href>; finalUrl is the click target.
             'url' => $embed->url,
             'finalUrl' => $clickUrl,
@@ -80,6 +94,8 @@ class PostResourceFields
             'image' => $image,
             'siteName' => (string) $siteName,
             'domain' => $domain,
+            'dismissed' => $dismissed,
+            'canDismiss' => $canDismiss,
         ];
     }
 

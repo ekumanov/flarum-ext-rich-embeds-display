@@ -1,8 +1,13 @@
+.RichEmbedsDisplay-card-wrapper {
+    position: relative;
+    margin: 8px 0;
+}
+
 .RichEmbedsDisplay-card {
     display: flex;
     align-items: flex-start;
     gap: 12px;
-    margin: 8px 0;
+    margin: 0;
     padding: 12px;
     border: 1px solid var(--control-bg);
     border-radius: var(--border-radius);
@@ -34,6 +39,81 @@
     object-fit: cover;
     border-radius: calc(var(--border-radius) * 0.5);
     background: var(--body-bg);
+}
+
+// Failed-image placeholder: same dimensions, subtle gradient. Preserves the
+// slot so the card doesn't reflow when a hot-linked image 404s.
+.RichEmbedsDisplay-card-image--missing {
+    background: linear-gradient(135deg, var(--body-bg) 25%, var(--control-bg) 25%, var(--control-bg) 50%, var(--body-bg) 50%, var(--body-bg) 75%, var(--control-bg) 75%);
+    background-size: 8px 8px;
+    opacity: 0.4;
+}
+
+// Dismiss button — overlaid in top-right corner. Visible only to actors with
+// edit permission (UI gating); also gated server-side.
+.RichEmbedsDisplay-card-dismiss {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--body-bg);
+    color: var(--muted-color);
+    font-size: 16px;
+    line-height: 20px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.15s ease, background 0.15s ease;
+
+    &:hover, &:focus {
+        opacity: 1;
+        background: var(--alert-error-bg, #fee);
+        color: var(--alert-error-color, #c00);
+    }
+
+    &:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+}
+
+// Restore placeholder — small inline link under a dismissed card's URL.
+// Only rendered if canDismiss=true.
+.RichEmbedsDisplay-restorePlaceholder {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 6px;
+    font-size: 0.85em;
+    color: var(--muted-color);
+    font-style: italic;
+
+    &-label {
+        opacity: 0.7;
+    }
+
+    &-restore {
+        background: none;
+        border: none;
+        padding: 0;
+        color: var(--link-color);
+        cursor: pointer;
+        font-size: inherit;
+        text-decoration: underline;
+        text-decoration-style: dotted;
+
+        &:hover, &:focus {
+            text-decoration-style: solid;
+        }
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    }
 }
 
 .RichEmbedsDisplay-card-text {
