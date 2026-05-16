@@ -1,6 +1,6 @@
 {
     "name": "ekumanov/flarum-ext-rich-embeds-display",
-    "description": "Renders OpenGraph preview cards for plain links in Flarum 2.0 posts. Schema-compatible with legacy kilowhat/rich-embeds data.",
+    "description": "Renders OpenGraph preview cards for plain links in Flarum 2.0 posts. SSRF-hardened server-side fetcher, queue-backed, with per-card dismiss controls and self-link short-circuit. Optionally migrates legacy kilowhat/rich-embeds 1.x data on first run.",
     "keywords": [
         "flarum",
         "extension",

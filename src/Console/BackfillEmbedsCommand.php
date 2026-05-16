@@ -128,7 +128,7 @@ class BackfillEmbedsCommand extends Command
 
                     if (! $dry) {
                         // Idempotent pivot link (post → embed).
-                        $db->table('kilowhat_rich_embed_post')->insertOrIgnore([
+                        $db->table('ekumanov_rich_embed_post')->insertOrIgnore([
                             'embed_id' => $embed->id,
                             'post_id'  => $postId,
                             'is_link'  => 1,

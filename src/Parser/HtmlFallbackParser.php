@@ -11,9 +11,9 @@ use DOMXPath;
  * advertise og:* / twitter:* metadata but do have a <title> and maybe a
  * <meta name="description"> still deserve a basic card.
  *
- * Output shape matches kilowhat's `fallback` and `icons` JSON columns so the
- * existing display layer (PostResourceFields.firstImage / preview()) reads
- * either source without branching.
+ * Output shape matches the `fallback` and `icons` JSON columns the display
+ * layer reads (PostResourceFields.firstImage / preview()) — same shape
+ * kilowhat 1.x used, kept stable across migrations.
  */
 final class HtmlFallbackParser
 {

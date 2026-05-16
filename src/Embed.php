@@ -6,7 +6,7 @@ use Flarum\Database\AbstractModel;
 
 class Embed extends AbstractModel
 {
-    protected $table = 'kilowhat_rich_embeds';
+    protected $table = 'ekumanov_rich_embeds';
 
     public $timestamps = false;
 

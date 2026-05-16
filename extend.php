@@ -20,12 +20,15 @@ return [
         ->js(__DIR__.'/js/dist/forum.js')
         ->css(__DIR__.'/resources/less/forum.less'),
 
+    (new Extend\Frontend('admin'))
+        ->js(__DIR__.'/js/dist/admin.js'),
+
     new Extend\Locales(__DIR__.'/locale'),
 
     (new Extend\Model(Post::class))
         ->relationship('richEmbedsDisplay', function (Post $post) {
             return $post
-                ->belongsToMany(Embed::class, 'kilowhat_rich_embed_post', 'post_id', 'embed_id')
+                ->belongsToMany(Embed::class, 'ekumanov_rich_embed_post', 'post_id', 'embed_id')
                 ->withPivot('dismissed_at')
                 ->wherePivot('is_link', 1)
                 ->where('http_status', 200)
@@ -75,15 +78,10 @@ return [
         ->post('/rich-embeds/posts/{postId}/embeds/{embedId}/dismiss', 'rich-embeds.dismiss', DismissEmbedController::class)
         ->delete('/rich-embeds/posts/{postId}/embeds/{embedId}/dismiss', 'rich-embeds.restore', RestoreEmbedController::class),
 
-    // Default settings — admins can override via the settings table. We
-    // ship NO default blacklist: every URL gets a fetch+card unless the
-    // admin explicitly excludes a host. This is the most permissive
-    // baseline; admins curate their own blacklist via SQL (admin UI is v1.1).
-    //
-    // (Earlier iterations defaulted to amazon.com+ebay.com; reverted after
-    // user feedback that they preferred ANY preview to a raw hyperlink, even
-    // if the source site's OG card is mediocre. Dismiss/restore controls
-    // give authors+mods per-card override anyway.)
+    // Default settings — admins override via the admin settings page (v2.0+).
+    // Blacklist default is empty: every URL gets a fetch+card unless the
+    // admin explicitly excludes a host. Dismiss/restore controls give
+    // authors+mods per-card override on top of the host-level setting.
     (new Extend\Settings())
         ->default('ekumanov-rich-embeds.blacklist', ''),
 

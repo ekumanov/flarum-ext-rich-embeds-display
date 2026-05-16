@@ -9,11 +9,11 @@ use DOMXPath;
 /**
  * Extracts Open Graph + Twitter Card metadata from a page's <head>.
  *
- * Output shape matches kilowhat's `opengraph` JSON column so the existing
- * display layer (PostResourceFields) works against either source without
- * branching. Twitter Card tags are merged in as fallbacks for missing OG
- * fields — sites that ship only Twitter tags (a real pattern) still produce
- * usable cards.
+ * Output shape matches the `opengraph` JSON column the display layer
+ * (PostResourceFields) reads — same shape kilowhat 1.x used, kept stable so
+ * migrating installs see no rendering differences. Twitter Card tags are
+ * merged in as fallbacks for missing OG fields — sites that ship only
+ * Twitter tags (a real pattern) still produce usable cards.
  *
  * OG groups (og:image followed by og:image:secure_url/width/height) are
  * preserved as nested arrays per the spec — but only when the related tag

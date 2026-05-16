@@ -37,7 +37,7 @@ class RestoreEmbedController implements RequestHandlerInterface
             throw new PermissionDeniedException();
         }
 
-        $this->db->table('kilowhat_rich_embed_post')
+        $this->db->table('ekumanov_rich_embed_post')
             ->where('post_id', $postId)
             ->where('embed_id', $embedId)
             ->update(['dismissed_at' => null]);

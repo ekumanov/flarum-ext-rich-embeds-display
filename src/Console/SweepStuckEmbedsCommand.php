@@ -37,7 +37,7 @@ class SweepStuckEmbedsCommand extends Command
         $cutoff = Carbon::now()->subSeconds($ageSec);
         $floor = Carbon::now()->subHours(6);
 
-        $rows = $db->table('kilowhat_rich_embeds')
+        $rows = $db->table('ekumanov_rich_embeds')
             ->select('id')
             ->whereNull('retrieved_at')
             ->where('created_at', '<', $cutoff)

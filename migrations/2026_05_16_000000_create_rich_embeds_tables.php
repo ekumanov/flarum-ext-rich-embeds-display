@@ -1,22 +1,28 @@
 <?php
 
-// Idempotent — uses createTableIfNotExists so existing kilowhat 1.x installs
-// (where the tables already exist from the original extension) keep their
-// data untouched. Fresh 2.0 installs get the same schema.
+// Idempotent. Three install scenarios this needs to handle:
+//
+//   1. Brand-new install: creates `ekumanov_rich_embeds` and
+//      `ekumanov_rich_embed_post` directly with the v2.x schema.
+//
+//   2. Upgrade from extension v1.x (where the tables were named
+//      `kilowhat_*` for backwards-compat with kilowhat 1.x): tables already
+//      exist under the old name; this migration is a no-op. The 030000
+//      rename migration handles the rename to `ekumanov_*` later in the run.
+//
+//   3. Migrating from kilowhat 1.x directly: same as (2) — the kilowhat
+//      tables exist, this migration is a no-op, the rename migration
+//      handles bringing them under our namespace.
 
-use Flarum\Database\Migration;
 use Illuminate\Database\Schema\Blueprint;
 
 return [
     'up' => function (\Illuminate\Database\Schema\Builder $schema) {
-        if (! $schema->hasTable('kilowhat_rich_embeds')) {
-            $schema->create('kilowhat_rich_embeds', function (Blueprint $table) {
+        if (! $schema->hasTable('ekumanov_rich_embeds') && ! $schema->hasTable('kilowhat_rich_embeds')) {
+            $schema->create('ekumanov_rich_embeds', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('url', 2048);
                 $table->binary('url_hash', 20)->nullable()->unique();
-                // SMALLINT — kilowhat 1.x used TINYINT but that silently
-                // truncates 4xx/5xx codes to 255. Fresh installs get the
-                // correct width; the 010000 migration widens existing tables.
                 $table->unsignedSmallInteger('http_status')->nullable();
                 $table->string('error', 255)->nullable();
                 $table->json('opengraph')->nullable();
@@ -34,26 +40,24 @@ return [
             });
         }
 
-        if (! $schema->hasTable('kilowhat_rich_embed_post')) {
-            $schema->create('kilowhat_rich_embed_post', function (Blueprint $table) {
+        if (! $schema->hasTable('ekumanov_rich_embed_post') && ! $schema->hasTable('kilowhat_rich_embed_post')) {
+            $schema->create('ekumanov_rich_embed_post', function (Blueprint $table) {
                 $table->unsignedInteger('embed_id');
                 $table->unsignedInteger('post_id');
                 $table->boolean('is_link')->default(true);
                 // dismissed_at: NULL=active, set by author/mod to hide the card
-                // while keeping the link itself. Fresh installs get the wide
-                // schema directly; the 020000 migration adds it to existing
-                // kilowhat 1.x tables.
+                // while keeping the link itself.
                 $table->timestamp('dismissed_at')->nullable();
                 $table->primary(['embed_id', 'post_id']);
                 $table->index('post_id');
-                $table->foreign('embed_id')->references('id')->on('kilowhat_rich_embeds')->onDelete('cascade');
+                $table->foreign('embed_id')->references('id')->on('ekumanov_rich_embeds')->onDelete('cascade');
                 $table->foreign('post_id')->references('id')->on('posts')->onDelete('cascade');
             });
         }
     },
     'down' => function (\Illuminate\Database\Schema\Builder $schema) {
-        // Down is a no-op on purpose: dropping these tables on prod would
-        // delete user data accumulated by the kilowhat 1.x extension and our
-        // own subsequent fetches. If you really want them gone, drop manually.
+        // Down is a no-op on purpose: dropping these tables would destroy
+        // accumulated user data — every cached embed and every post→embed
+        // pivot. If you really want them gone, drop manually.
     },
 ];

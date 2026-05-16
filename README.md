@@ -212,8 +212,9 @@ jobs, so a forum without it just loses the safety net.
 
 ## Configuration
 
-Settings live under the `ekumanov-rich-embeds.` prefix in the `settings`
-table. No admin UI yet (planned for v1.x); set directly:
+Admin UI: **Admin → Extensions → Rich Embeds** has fields for all settings.
+The underlying keys are under the `ekumanov-rich-embeds.` prefix in the
+`settings` table; you can also set them directly via SQL if you prefer:
 
 ```sql
 INSERT INTO settings (`key`, value) VALUES
@@ -252,7 +253,7 @@ our extractor regardless of blacklist settings.)
 ## Migration from `kilowhat/rich-embeds` 1.x
 
 If your forum ran the 1.x kilowhat extension, the tables
-(`kilowhat_rich_embeds`, `kilowhat_rich_embed_post`) and old data are
+(`ekumanov_rich_embeds`, `kilowhat_rich_embed_post`) and old data are
 preserved as-is. This extension reuses them in place. Old cards render
 identically. New posts trigger fetches via the new worker pipeline.
 

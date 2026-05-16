@@ -93,8 +93,9 @@ final class LocalDiscussionResolver
     /**
      * Resolve a URL into OpenGraph-shaped data, or null if not a self-link
      * or the target discussion isn't publicly viewable. The returned shape
-     * matches kilowhat's `opengraph` JSON column so the rest of the
-     * extension treats it identically to an HTTP-fetched card.
+     * matches the `opengraph` JSON column the rest of the extension reads,
+     * so locally-synthesised data is indistinguishable from an HTTP-fetched
+     * card by the time the display layer renders it.
      *
      * @return array{title:string,description:?string,site_name:string,url:string,type:string,images:list<array>}|null
      */

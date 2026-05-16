@@ -103,7 +103,7 @@ final class ScanPostUrls
 
             // Link the embed to this post. Use insertOrIgnore so repeats are
             // idempotent (e.g. revising the same post twice with the same URL).
-            $this->db->table('kilowhat_rich_embed_post')->insertOrIgnore([
+            $this->db->table('ekumanov_rich_embed_post')->insertOrIgnore([
                 'embed_id' => $embed->id,
                 'post_id'  => $post->id,
                 'is_link'  => 1,
@@ -149,13 +149,13 @@ final class ScanPostUrls
         $hashes = array_map(fn ($url) => sha1($url, true), $currentUrls);
 
         if ($hashes === []) {
-            $this->db->table('kilowhat_rich_embed_post')->where('post_id', $postId)->delete();
+            $this->db->table('ekumanov_rich_embed_post')->where('post_id', $postId)->delete();
             return;
         }
 
         $keepIds = Embed::whereIn('url_hash', $hashes)->pluck('id')->all();
 
-        $q = $this->db->table('kilowhat_rich_embed_post')->where('post_id', $postId);
+        $q = $this->db->table('ekumanov_rich_embed_post')->where('post_id', $postId);
         if ($keepIds !== []) {
             $q->whereNotIn('embed_id', $keepIds);
         }
